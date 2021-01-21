@@ -105,7 +105,7 @@ jobs:
       projectKey: SteeltoeOSS_steeltoe
       extraProperties: |
           sonar.cs.opencover.reportsPaths=$(Build.SourcesDirectory)/**/*opencover.xml
-          sonar.cs.vstest.reportsPaths=$(Agent.TempDirectory)/*.trx
+          sonar.cs.vstest.reportsPaths=$(Build.SourcesDirectory)/**/*.trx
           sonar.exclusions=$(Build.SourcesDirectory)/src/Management/src/Diagnostics*
           sonar.coverage.exclusions=**/*Test*/**/*
   - task: DotNetCoreCLI@2
