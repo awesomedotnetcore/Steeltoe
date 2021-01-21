@@ -20,22 +20,21 @@ jobs:
     matrix:
       Linux:
         imageName: ubuntu-latest
-        skipFilter: '--filter "&Category!=SkipOnLinux"'
+        skipFilter: '--filter "Category!=SkipOnLinux"'
         sonarAnalyze: true
         integrationTests: true
       MacOS:
         imageName: macOS-latest
-        skipFilter: --filter "Category!=Integration&Category!=SkipOnMacOS"'
+        skipFilter: --filter "Category!=Integration&Category!=SkipOnMacOS&FullyQualifiedName!~CircuitBreaker"'
         integrationTests: false
-      Windows_netcoreapp3_1:
+      MacOS_Hystrix:
+        imageName: macOS-latest
+        skipFilter: --filter "Category!=Integration&Category!=SkipOnMacOS&FullyQualifiedName~CircuitBreaker"'
+        integrationTests: false
+      Windows:
         imageName: windows-latest
-        skipFilter: '-f netcoreapp3.1 --filter "Category!=Integration&FullyQualifiedName!~CircuitBreaker"'
+        skipFilter: '--filter "Category!=Integration&FullyQualifiedName!~CircuitBreaker"'
         package: true
-        integrationTests: false
-      Windows_net5:
-        imageName: windows-latest
-        skipFilter: '-f net5.0 --filter "Category!=Integration&FullyQualifiedName!~CircuitBreaker" --blame-hang --blame-hang-timeout 4m'
-        package: false
         integrationTests: false
       Windows_Hystrix:
         imageName: windows-latest
@@ -178,19 +177,14 @@ jobs:
     vmImage: ubuntu-latest
   steps:
   - download: current
-    artifact: coverageResults-Steeltoe_CI Linux_integration_and_Hystrix
+    artifact: coverageResults-Steeltoe_CI Linux
     condition: succeededOrFailed()
-    displayName: Download integration test coverage results
+    displayName: Download test coverage results from Linux
     continueOnError: true
   - download: current
-    artifact: coverageResults-Steeltoe_CI Windows_netcoreapp3_1
+    artifact: coverageResults-Steeltoe_CI Windows
     condition: succeededOrFailed()
-    displayName: Download .NET Core 3.1 code coverage results
-    continueOnError: true
-  - download: current
-    artifact: coverageResults-Steeltoe_CI Windows_net5
-    condition: succeededOrFailed()
-    displayName: Download .NET 5 code coverage results
+    displayName: Download test coverage results from Windows
     continueOnError: true
   - task: Palmmedia.reportgenerator.reportgenerator-build-release-task.reportgenerator@4
     condition: succeededOrFailed()
