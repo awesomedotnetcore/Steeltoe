@@ -90,12 +90,10 @@ jobs:
       Windows_net5:
         imageName: windows-latest
         skipFilter: '-f net5.0 --filter "Category!=Integration&FullyQualifiedName!~CircuitBreaker" --blame-hang --blame-hang-timeout 4m'
-        package: false
         integrationTests: false
       Windows_Hystrix:
         imageName: windows-latest
         skipFilter: '--filter "Category!=Integration&FullyQualifiedName~CircuitBreaker"'
-        package: false
         integrationTests: false
   pool:
     vmImage: $(imageName)
@@ -116,9 +114,7 @@ jobs:
       projectKey: SteeltoeOSS_steeltoe
       extraProperties: |
           sonar.cs.opencover.reportsPaths=$(Build.SourcesDirectory)/**/*opencover.xml
-          sonar.cs.vstest.reportsPaths=$(Agent.TempDirectory)/*.trx
           sonar.exclusions=$(Build.SourcesDirectory)/src/Management/src/Diagnostics*
-          sonar.coverage.exclusions=**/*Test*/**/*
   - task: DotNetCoreCLI@2
     displayName: dotnet build
     inputs:
@@ -158,12 +154,10 @@ jobs:
       reports: '$(Build.SourcesDirectory)/**/coverage.opencover.xml'
       targetdir: '$(Build.ArtifactStagingDirectory)/CodeCoverage-$(Agent.JobName)'
       reporttypes: 'Cobertura'
-  - task: PublishBuildArtifacts@1
+  - publish: '$(Build.ArtifactStagingDirectory)/CodeCoverage-$(Agent.JobName)'
     condition: and(succeededOrFailed(), or(eq( variables['Agent.OS'], 'Windows_NT' ), eq(variables['integrationTests'], 'true')))
     displayName: Publish code coverage artifacts
-    inputs:
-      PathtoPublish: $(Build.ArtifactStagingDirectory)/CodeCoverage-$(Agent.JobName)
-      ArtifactName: coverageResults-$(Agent.JobName)
+    artifact: coverageResults-$(Agent.JobName)
   - task: SonarCloudAnalyze@1
     condition: and(succeededOrFailed(), eq( variables['sonarAnalyze'], 'true' ))
     displayName: Run code analysis
@@ -171,17 +165,18 @@ jobs:
     condition: and(succeededOrFailed(), eq( variables['sonarAnalyze'], 'true' ))
     displayName: Publish quality gate result
   - task: DotNetCoreCLI@2
-    condition: and(eq( variables['Agent.OS'], 'Windows_NT' ), eq(variables['package'], 'true'))
+    condition: eq(variables['package'], 'true')
     displayName: dotnet pack
     inputs:
       command: pack
       feedsToUse: select
       packagesToPack: src/Steeltoe.All.sln
+      packDirectory: '$(Build.ArtifactStagingDirectory)/packages'
       versioningScheme: byEnvVar
       versionEnvVar: PackageVersion
       nobuild: true
   - task: PowerShell@2
-    condition: and(succeeded(), not(eq(variables['build.reason'], 'PullRequest')), not(eq(variables['SignClientSecret'], '')), not(eq(variables['SignClientUser'], '')), eq( variables['Agent.OS'], 'Windows_NT' ), eq(variables['package'], 'true'))
+    condition: and(succeeded(), not(eq(variables['build.reason'], 'PullRequest')), not(eq(variables['SignClientSecret'], '')), not(eq(variables['SignClientUser'], '')), eq(variables['package'], 'true'))
     displayName: Authenticode sign packages
     inputs:
       filePath: build/sign-packages.ps1
@@ -189,13 +184,10 @@ jobs:
       SignClientUser: $(SignClientUser)
       SignClientSecret: $(SignClientSecret)
       ArtifactDirectory: $(Build.ArtifactStagingDirectory)
-  - task: PublishBuildArtifacts@1
-    condition: and(eq( variables['Agent.OS'], 'Windows_NT' ), eq(variables['package'], 'true'))
+  - publish: '$(Build.ArtifactStagingDirectory)/packages'
+    condition: eq(variables['package'], 'true')
     displayName: Publish build artifacts
-    inputs:
-      PathtoPublish: $(Build.ArtifactStagingDirectory)
-      ArtifactName: Packages
-      publishLocation: Container
+    artifact: Packages
   - bash: bash <(curl -s https://codecov.io/bash)
     displayName: 'Upload to codecov.io'
     condition: and(succeededOrFailed(), or(eq( variables['Agent.OS'], 'Windows_NT' ), eq(variables['integrationTests'], 'true')))
@@ -206,19 +198,9 @@ jobs:
     vmImage: ubuntu-latest
   steps:
   - download: current
-    artifact: coverageResults-Steeltoe_CI Linux
+    patterns: '**/Cobertura.xml'
     condition: succeededOrFailed()
-    displayName: Download test coverage results from Linux
-    continueOnError: true
-  - download: current
-    artifact: coverageResults-Steeltoe_CI Windows_netcoreapp3_1
-    condition: succeededOrFailed()
-    displayName: Download .NET Core 3.1 code coverage results
-    continueOnError: true
-  - download: current
-    artifact: coverageResults-Steeltoe_CI Windows_net5
-    condition: succeededOrFailed()
-    displayName: Download .NET 5 code coverage results
+    displayName: Download all code coverage results
     continueOnError: true
   - task: Palmmedia.reportgenerator.reportgenerator-build-release-task.reportgenerator@4
     condition: succeededOrFailed()
